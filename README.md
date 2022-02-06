@@ -62,7 +62,7 @@ The essential subtasks for this part of the project are:
 ## Task 2: Implement the models
 
 You are free to implement these models as you see fit, but you should follow the equations that are presented in
-the lecture slides, and you must implement the models from scratch (i.e., youCANNOTuse SciKit Learn or any
+the lecture slides, and you must implement the models from scratch (i.e., you CANNOTuse SciKit Learn or any
 other pre-existing implementations of these methods). However, you are free to use relevant code given in the course
 website.
 
