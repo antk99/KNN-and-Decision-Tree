@@ -31,18 +31,85 @@ import matplotlib.pyplot as plt
 from IPython.core.debugger import set_trace         #for debugging 
 
 dataset = pd.read_csv("/Users/lunadana/Desktop/COMP551/MiniProject/hepatitis_clean.csv")
+dataset = dataset.loc[:, dataset.columns != 'Unnamed: 0']
 dataset_predictors = dataset.loc[:, dataset.columns != 'Class']
-dataset_predictors_cat_only = dataset_predictors[]
+
+# data between 1 and 2 for continuous, so that every variable has the same weight
+# + we can now use euclidian distance on the whole dataset, treating categorical variables as continuous between 1 and 2:
+dataset_predictors_same_range = dataset_predictors.copy()
+for i in dataset_predictors_same_range.columns:
+    if max(dataset_predictors_same_range[i]) == 2 and min(dataset_predictors_same_range[i]) == 1:
+        continue
+    dataset_predictors_same_range[i] = 1 + dataset_predictors_same_range[i]/max(dataset_predictors_same_range[i])
+
+# List of continuous variables: "Age", "Bilirubin", "AlkPhosphate", "Sgot", "Albumin", "Protime"
+# Threshold: mean(variable) OR median(variable)
+
+dataset_predictors_cat_only = dataset_predictors.copy()
+dataset_predictors_cat_only_median = dataset_predictors.copy()
+
+Age_mean = dataset_predictors_cat_only["Age"].mean()
+Bili_mean = dataset_predictors_cat_only["Bilirubin"].mean()
+Alk_mean = dataset_predictors_cat_only["AlkPhosphate"].mean()
+Sgot_mean = dataset_predictors_cat_only["Sgot"].mean()
+Albu_mean = dataset_predictors_cat_only["Albumin"].mean()
+Prot_mean = dataset_predictors_cat_only["Protime"].mean()
+
+Age_median = dataset_predictors_cat_only["Age"].median()
+Bili_median = dataset_predictors_cat_only["Bilirubin"].median()
+Alk_median = dataset_predictors_cat_only["AlkPhosphate"].median()
+Sgot_median = dataset_predictors_cat_only["Sgot"].median()
+Albu_median = dataset_predictors_cat_only["Albumin"].median()
+Prot_median = dataset_predictors_cat_only["Protime"].median()
+
+# get dataset with only categorical variables based on the mean
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Age < Age_mean), 'Age'] = 1
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Age >= Age_mean), 'Age'] = 2
+
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Bilirubin < Bili_mean), 'Bilirubin'] = 1
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Bilirubin >= Bili_mean), 'Bilirubin'] = 2
+
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.AlkPhosphate < Alk_mean), 'AlkPhosphate'] = 1
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.AlkPhosphate >= Alk_mean), 'AlkPhosphate'] = 2
+
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Sgot < Sgot_mean), 'Sgot'] = 1
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Sgot >= Sgot_mean), 'Sgot'] = 2
+
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Albumin < Albu_mean), 'Albumin'] = 1
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Albumin >= Albu_mean), 'Albumin'] = 2
+
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Protime < Prot_mean), 'Protime'] = 1
+dataset_predictors_cat_only.loc[(dataset_predictors_cat_only.Protime >= Prot_mean), 'Protime'] = 2
+
+# get dataset with only categorical variables based on the median
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Age < Age_median), 'Age'] = 1
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Age >= Age_median), 'Age'] = 2
+
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Bilirubin < Bili_median), 'Bilirubin'] = 1
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Bilirubin >= Bili_median), 'Bilirubin'] = 2
+
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.AlkPhosphate < Alk_median), 'AlkPhosphate'] = 1
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.AlkPhosphate >= Alk_median), 'AlkPhosphate'] = 2
+
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Sgot < Sgot_median), 'Sgot'] = 1
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Sgot >= Sgot_median), 'Sgot'] = 2
+
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Albumin < Albu_median), 'Albumin'] = 1
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Albumin >= Albu_median), 'Albumin'] = 2
+
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Protime < Prot_median), 'Protime'] = 1
+dataset_predictors_cat_only_median.loc[(dataset_predictors_cat_only_median.Protime >= Prot_median), 'Protime'] = 2
 
 
 # Distance definition
 euclidean = lambda x1, x2: np.sqrt(np.sum((x1 - x2)**2, axis=-1))
 manhattan = lambda x1, x2: np.sum(np.abs(x1 - x2), axis=-1)
-hamilton = lambda x1, x2: np.sum(1 if x1!=x2 else 0, axis=-1)
+hamilton = lambda x1, x2: np.sum(np.where(x1 - x2 != 0, 1, 0), axis=-1)
+dummy = lambda x1, x2: np.sum(x1+x2, axis=-1)
 
 # Data
 # np.array([tuple(r) for r in dataset[['Age','Protime']].to_numpy()])
-x, y = np.array([tuple(r) for r in dataset_predictors.to_numpy()]), np.array(dataset['Class'])                                   #slices the first two columns or features from the data
+x, y = np.array([tuple(r) for r in dataset_predictors_same_range[['Protime', 'Sgot', 'AlkPhosphate', 'Histology']].to_numpy()]), np.array(dataset['Class'])                                   #slices the first two columns or features from the data
 
 #print the feature shape and classes of dataset 
 (N,D), C = x.shape, np.max(y)+1
@@ -51,8 +118,8 @@ print(f'instances (N) \t {N} \n features (D) \t {D} \n classes (C) \t {C}')
 inds = np.random.permutation(N)                                                     #generates an indices array from 0 to N-1 and permutes it 
 
 #split the dataset into train and test
-x_train, y_train = x[inds[:10]], y[inds[:10]]
-x_test, y_test = x[inds[10:]], y[inds[10:]]
+x_train, y_train = x[inds[:45]], y[inds[:45]]
+x_test, y_test = x[inds[45:]], y[inds[45:]]
 
 #visualization of the data
 #plt.scatter(x_train[:,0], x_train[:,1], c=y_train, marker='o', label='train')
@@ -94,16 +161,18 @@ class KNN:
 
 
 
-model = KNN(K=4-1)
+model = KNN(K=3)
 y_prob, knns = model.fit(x_train, y_train).predict(x_test)
 print('knns shape:', knns.shape)
 print('y_prob shape:', y_prob.shape)
+print(y_prob)
 
 #To get hard predictions by choosing the class with the maximum probability
 y_pred = np.argmax(y_prob,axis=-1)
+print(y_pred)
 accuracy = np.sum(y_pred == y_test)/y_test.shape[0]
 
-print(f'accuracy is {accuracy*100:.1f}.')
+print(f'accuracy is {accuracy*100:.2f}.')
 
 #boolean array to later slice the indexes of correct and incorrect predictions
 correct = y_test == y_pred
@@ -121,10 +190,22 @@ for i in range(x_test.shape[0]):
         ver = x_test[i,1], x_train[knns[i,k],1]
         plt.plot(hor, ver, 'k-', alpha=.1)
     
-plt.ylabel('sepal length')
-plt.xlabel('sepal width')
+plt.xlabel('Protime')
+plt.ylabel('Sgot')
 plt.legend()
 plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
