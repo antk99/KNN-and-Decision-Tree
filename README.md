@@ -8,19 +8,22 @@ Please read this entire document before beginning the assignment.
 
 ## Preamble
 
-- This mini-project is due on February 8th at 11:59pm (EST, Montreal Time). There is a penalty of 2 kpercent
-    penalty forkdays of delay, which means your grade will be scaled to be out of 100 − 2 k. No submission will
+- This mini-project is due on February 8th at 11:59pm (EST, Montreal Time). There is a penalty of 2^k percent
+    penalty for k days of delay, which means your grade will be scaled to be out of 100 − 2^k. No submission will
     be accepted after 6 days of delay.
+
 - This mini-project is to be completed in groups of three. All members of a group will receive the same grade
     except when a group member is not responding or contributing to the project. If this is the case and there are
     major conflicts, please reach out to the group TA for help and flag this in the submitted report. Please note that it
     is not expected that all team members will contribute equally. However every team member should make integral
     contributions to the project, be aware of the content of the submission and learn the full solution submitted.
+
 - You will submit your assignment on MyCourses as a group. You must register your group on MyCourses and
     any group member can submit. See MyCourses for details.
-- We recommend to useOverleaffor writing your report andGoogle colabfor coding and running the exper-
-    iments. The latter also gives access to the required computational resources. Both platforms enable remote
-    collaborations.
+
+- We recommend to use Overleaf for writing your report and Google colab for coding and running the experiments. 
+    The latter also gives access to the required computational resources. Both platforms enable remote collaborations.
+
 - You should use Python for this and the following mini-projects. You are free to use libraries with general
     utilities, such as matplotlib, numpy and scipy for Python, unless stated otherwise in the description of the task.
     In particular, in most cases you should implement the models and evaluation functions yourself, which means
@@ -29,7 +32,7 @@ Please read this entire document before beginning the assignment.
 
 ## Background
 
-In this miniproject you will implement two classification techniques—K-Nearest Neighbour and Decision Trees—
+In this miniproject you will implement two classification techniques — K-Nearest Neighbour and Decision Trees —
 and compare these two algorithms on two distinct health datasets. The goal is to get started with programming for
 Machine Learning, how to properly store the data, run the experiments, and compare different methods. You will also
 gain experience implementing these algorithms from scratch and get hands-on experience comparing performance of
@@ -50,7 +53,7 @@ The essential subtasks for this part of the project are:
 
 1. Load the datasets into NumPy or Pandas objects in Python.
 2. Clean the data. Are there any missing or malformed features? Are there are other data oddities that need to be
-    dealt with?You should remove any examples with missing or malformed features and note this in your
+    dealt with? You should remove any examples with missing or malformed features and note this in your
     report.
     If you choose to play with Pandas dataframes, a handy line of code that might be helpful is df[df.eq(’?’).any(1)],
     where df is the dataframe, and ’?’ represents a missing value in the datasets. This is a straightforward way to
@@ -62,7 +65,7 @@ The essential subtasks for this part of the project are:
 ## Task 2: Implement the models
 
 You are free to implement these models as you see fit, but you should follow the equations that are presented in
-the lecture slides, and you must implement the models from scratch (i.e., you CANNOTuse SciKit Learn or any
+the lecture slides, and you must implement the models from scratch (i.e., you CANNOT use SciKit Learn or any
 other pre-existing implementations of these methods). However, you are free to use relevant code given in the course
 website.
 
@@ -73,19 +76,19 @@ In particular, your two main tasks in the part are to:
 
 You are free to implement these models in any way you want, but you must use Python and you must implement
 the models from scratch (i.e., you cannot use SciKit Learn or similar libraries). Using the NumPy or Pan-
-das package, however, is allowed and encouraged.Regarding the implementation, we recommend the following
+das package, however, is allowed and encouraged. Regarding the implementation, we recommend the following
 approach (but again, you are free to do what you want):
 
 - Implement both models as Python classes. You should use the constructor for the class to initialize the model
     parameters as attributes, as well as to define other important properties of the model.
 - Each of your models classes should have (at least) two functions:
-    - Define afitfunction, which takes the training data (i.e.,XandY)—as well as other hyperparameters (e.g.,
-       K value in KNN and maximum tree depth in Decision Tree)—as input. This function should train your model
+    - Define a fit function, which takes the training data (i.e., X and Y) — as well as other hyperparameters (e.g.,
+       K value in KNN and maximum tree depth in Decision Tree) — as input. This function should train your model
        by modifying the model parameters.
-    - Define apredictfunction, which takes a set of input points (i.e.,X) as input and outputs predictions (i.e.,
+    - Define a predict function, which takes a set of input points (i.e., X) as input and outputs predictions (i.e.,
        yˆ) for these points.
-- In addition to the model classes, you should also define a functionsevaluate_accto evaluate the model accuracy.
-    This function should take the true labels (i.e.,y), and target labels (i.e.,yˆ) as input, and it should output the accuracy
+- In addition to the model classes, you should also define a functions evaluate_acc to evaluate the model accuracy.
+    This function should take the true labels (i.e., y), and target labels (i.e., yˆ) as input, and it should output the accuracy
     score.
 
 
@@ -94,13 +97,13 @@ approach (but again, you are free to do what you want):
 The goal of this project is to have you compare different features and models.
 
 Split each dataset into training and test sets. Use test set to estimate performance in all of the experiments after
-training the model with training set. Evaluate the performance using accuracy.You are welcome to perform any
-experiments and analyses you see fit (e.g., to compare different features),but at a minimum you must complete the
+training the model with training set. Evaluate the performance using accuracy. You are welcome to perform any
+experiments and analyses you see fit (e.g., to compare different features), but at a minimum you must complete the
 following experiments in the order stated below:
 
 1. Compare the accuracy of KNN and Decision Tree algorithm on the two datasets.
 2. Test different K values and see how it affects the training data accuracy and test data accuracy.
-3. Similarly, check how maximum tree depth can affect the performance of of Decision Tree on the provided
+3. Similarly, check how maximum tree depth can affect the performance of Decision Tree on the provided
     datasets. Describe your findings.
 4. Try out different distance/cost functions for both models. Describe your findings.
 5. Present a plot of the decision boundary for each model. Describe the key features in short.
@@ -171,8 +174,8 @@ The mini-project is out of 100 points, and the evaluation breakdown is as follow
     - Do you effectively present numerical results (e.g., via tables or figures)?
 - Originality / creativity (15 points)
     - Did you go beyond the bare minimum requirements for the experiments?
-    - Note:Simply adding in a random new experiment will not guarantee a high grade on this section! You
-       should bethoughtful and organizedin your report. That is, the distinctive ideas that you came up with
+    - Note: Simply adding in a random new experiment will not guarantee a high grade on this section! You
+       should be thoughtful and organized in your report. That is, the distinctive ideas that you came up with
        should blend in your whole story. For instance, explaining the triggers behind them would be a great
        starting point.
 
