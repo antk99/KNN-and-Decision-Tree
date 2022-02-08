@@ -42,7 +42,8 @@ for i in dataset_predictors_same_range.columns:
         continue
     dataset_predictors_same_range[i] = 1 + dataset_predictors_same_range[i]/max(dataset_predictors_same_range[i])
 
-# List of continuous variables: "Age", "Bilirubin", "AlkPhosphate", "Sgot", "Albumin", "Protime"
+# List of continuous variables: "Age", "Bilirubin", "AlkPhosphate", "Sgot", 
+# "Albumin", "Protime"
 # Threshold: mean(variable) OR median(variable)
 
 dataset_predictors_cat_only = dataset_predictors.copy()
@@ -109,7 +110,7 @@ dummy = lambda x1, x2: np.sum(x1+x2, axis=-1)
 
 # Data
 # np.array([tuple(r) for r in dataset[['Age','Protime']].to_numpy()])
-x, y = np.array([tuple(r) for r in dataset_predictors_same_range[['Protime', 'Sgot', 'AlkPhosphate', 'Histology']].to_numpy()]), np.array(dataset['Class'])                                   #slices the first two columns or features from the data
+x, y = np.array([tuple(r) for r in dataset_predictors_same_range[['Protime', 'AlkPhosphate', 'Bilirubin']].to_numpy()]), np.array(dataset['Class'])                                   #slices the first two columns or features from the data
 
 #print the feature shape and classes of dataset 
 (N,D), C = x.shape, np.max(y)+1
@@ -118,8 +119,8 @@ print(f'instances (N) \t {N} \n features (D) \t {D} \n classes (C) \t {C}')
 inds = np.random.permutation(N)                                                     #generates an indices array from 0 to N-1 and permutes it 
 
 #split the dataset into train and test
-x_train, y_train = x[inds[:45]], y[inds[:45]]
-x_test, y_test = x[inds[45:]], y[inds[45:]]
+x_train, y_train = x[inds[:50]], y[inds[:50]]
+x_test, y_test = x[inds[50:]], y[inds[50:]]
 
 #visualization of the data
 #plt.scatter(x_train[:,0], x_train[:,1], c=y_train, marker='o', label='train')
@@ -140,7 +141,7 @@ class KNN:
         ''' Store the training data using this method as it is a lazy learner'''
         self.x = x
         self.y = y
-        self.C = np.max(y)+1 
+        self.C = np.max(y) +1 
         return self
     def predict(self, x_test):
         ''' Makes a prediction using the stored training data and the test data given as argument'''
@@ -159,20 +160,42 @@ class KNN:
         y_prob /= self.K
         return y_prob, knns
 
+K_values = []
+for K_iter in range(1, len(y_train)):
+    print('\n')
+    print(f'Model with K = {K_iter}.')
+    model = KNN(K=K_iter)
+    y_prob, knns = model.fit(x_train, y_train).predict(x_test)
+    print('knns shape:', knns.shape)
+    print('y_prob shape:', y_prob.shape)
+    #print(y_prob)
+    
+    #To get hard predictions by choosing the class with the maximum probability
+    y_pred = np.argmax(y_prob,axis=-1)
+    #print(y_pred)
+    accuracy = np.sum(y_pred == y_test)/y_test.shape[0]
+    K_values.append(accuracy)
+    print(f'accuracy is {accuracy*100:.2f}.')
+
+print("\nAccuracy over values of K:")
+print(K_values)
+print("\nProportion of Y=2 in the test data:")
+print(np.count_nonzero(y_test == 2)/len(y_test))
+print("\nProportion of Y=2 in the train data:")
+print(np.count_nonzero(y_train == 2)/len(y_train))
 
 
-model = KNN(K=3)
-y_prob, knns = model.fit(x_train, y_train).predict(x_test)
-print('knns shape:', knns.shape)
-print('y_prob shape:', y_prob.shape)
-print(y_prob)
-
-#To get hard predictions by choosing the class with the maximum probability
-y_pred = np.argmax(y_prob,axis=-1)
-print(y_pred)
-accuracy = np.sum(y_pred == y_test)/y_test.shape[0]
-
-print(f'accuracy is {accuracy*100:.2f}.')
+''' 
+We observe by printing the accuracy over the K and the proportion of
+CLASS = 2 in the test set that the values are equal from a certain value
+of K. 
+This is indeed an expected result, since the dataset contains only very few 
+CLASS = to 1. Thus, when we start takiong into account more neighbors, 
+we come across a problem: most of the neighbors have CLASS = 2, simply
+because the majority of the dataset has CLASS = 2 (13/80 have CLASS=1).
+Hence, all the test y's are then set to 2, and the accuracy is just the 
+proportion of test y's equal to 2.
+'''
 
 #boolean array to later slice the indexes of correct and incorrect predictions
 correct = y_test == y_pred
@@ -190,23 +213,11 @@ for i in range(x_test.shape[0]):
         ver = x_test[i,1], x_train[knns[i,k],1]
         plt.plot(hor, ver, 'k-', alpha=.1)
     
-plt.xlabel('Protime')
-plt.ylabel('Sgot')
+plt.xlabel('Age')
+plt.ylabel('AlkPhosphate')
 plt.legend()
 plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
+plt.plot(K_values)
 
 
 
