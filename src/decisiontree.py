@@ -1,7 +1,11 @@
+import random
+
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
-# TODO testing/experimenting on the datasets w/ visualizations & for correctness
+# TODO finish experiments
+
 
 """
 The following cost functions were taken from the class website code (colab):
@@ -13,6 +17,8 @@ The following cost functions were taken from the class website code (colab):
 
 # computes misclassification cost by subtracting the maximum probability of any class
 def cost_misclassification(labels):
+    if len(labels) == 0:
+        return 0
     counts = np.bincount(labels)
     class_probs = counts / np.sum(counts)
     return 1 - np.max(class_probs)
@@ -42,6 +48,88 @@ def merge_features_labels(features, labels):
     labels = pd.DataFrame(labels)
     data['Labels'] = labels
     return data
+
+
+def train_test_split(X, Y, test_size=0.2, rand_seed=None):
+    num_instances = X.shape[0]
+    num_instances_train = int((1-test_size)*num_instances)
+
+    if rand_seed is None:
+        np.random.seed(random.random())
+    else:
+        np.random.seed(rand_seed)
+
+    inds = np.random.permutation(num_instances)
+    # train-test split
+    x_train, y_train = X[inds[:num_instances_train]], Y[inds[:num_instances_train]]
+    x_test, y_test = X[inds[num_instances_train:]], Y[inds[num_instances_train:]]
+    return x_train, x_test, y_train, y_test
+
+
+def evaluate_acc(y_pred, y_test):
+    """
+    Evaluates the model's accuracy as (correct / total) * 100%
+    :param y_pred: Numpy.ndarray - the [1 x n] array of predictions given from the model
+    :param y_test: Numpy.ndarray - the [n x 1] array of true labels from the dataset
+    :return: float - the accuracy of the model
+    """
+    tot = 0
+    correct = 0
+    for i in range(len(y_pred)):
+        if int(y_pred[i]) == int(y_test[i][0]):
+            correct += 1
+        tot += 1
+    return correct / tot * 100
+
+
+def get_best_acc_cols(x, y, num_iterations=10):
+    """
+    Helper function to determine the average accuracy over num_iterations iterations for every possible pair of features
+    in a dataset x on a given model
+    :param x: Pandas.DataFrame - the processed/cleaned 2D-array of features
+    :param y: Pandas.DataFrame - the processed/cleaned 2D-array of labels
+    :param model: the machine learning model that implements the fit & predict function as specified
+    :param num_iterations: int - the # of iterations w/ random data split for each feature pair
+    :return: tuple - (((INDEX BEST FEATURE 1, INDEX BEST FEATURE 2), ACCURACY), COLS)
+                        where COLS is the dictionary storing the average accuracies for all feature pairs
+    """
+    # stores the feature pair with the best accuracy as ((INDEX BEST FEATURE 1, INDEX BEST FEATURE 2), ACCURACY)
+    best_acc = ((0, 1), 0)
+
+    # stores the average accuracies for all feature pairs as
+    # { (INDEX FEATURE 1, INDEX FEATURE 2): ACCURACY1, (INDEX FEATURE 1, INDEX FEATURE 3): ACCURACY2, ... }
+    cols = {}
+    num_features = x.shape[1]
+    r = np.random.permutation(num_iterations)
+
+    # iterates over the number of features - 1 to avoid the case where a = feature x & b = feature x
+    for a in range(num_features - 1):
+        # iterates over the number of features after a to ensure a != b
+        for b in range(a + 1, num_features):
+            accuracy_sum = 0    # stores the sum of accuracies for the current feature pair (a,b)
+
+            # calculates the accuracy over num_iterations trials & updates the average for this feature pair (a,b)
+            for rand in r:
+                X = x[[x.columns[a], x.columns[b]]].values    # filters the features to the 2 columns at index a & b
+                Y = y.values.reshape(-1, 1)
+
+                # splits the data into training and testing sets
+                x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, rand_seed=((rand+1)**3))
+
+                model = DecisionTree(max_depth=20, min_instances=2, cost_function=cost_entropy)
+                model.fit(x_train, y_train)    # fits the model on the data of the current feature pair
+                y_pred = model.predict(x_test)    # gets the predictions made from the model on the test set
+                accuracy_sum += evaluate_acc(y_pred, y_test)    # updates the accuracy sum for the current feature pair
+
+            avg_acc = accuracy_sum / num_iterations    # computes the average of the accuracies
+
+
+            # if the current feature pair (a,b) yields a better average accuracy than the current best --> update
+            if avg_acc > best_acc[1]:
+                best_acc = ((a, b), avg_acc)
+            cols[(a, b)] = avg_acc    # stores the current feature pair's average accuracy in the dictionary
+            print(cols)
+    return best_acc, cols
 
 
 def best_split(data, cost_function):
@@ -176,8 +264,9 @@ class DecisionTree:
             return Node(feature=split['feature'], test=split['test'], left_child=left_child, right_child=right_child)
 
         # reached a leaf node so the label of this node is determined by the most frequent label in the data (mode)
-        leaf_label = data['Labels'].mode().values
-        return Node(label=leaf_label)
+        if num_instances > 0:
+            leaf_label = int(data['Labels'].mode().values[0])
+            return Node(label=leaf_label)
 
     def fit(self, train_features, train_labels):
         """
@@ -187,6 +276,19 @@ class DecisionTree:
         :return: DecisionTree - the tree that was just built, self
         """
         self.root = self._build(merge_features_labels(train_features, train_labels))
+
+        nodes = [self.root]
+        while len(nodes) > 0:
+            curr_node = nodes.pop()
+            if curr_node is not None:
+                nodes.append(curr_node.right_child)
+                nodes.append(curr_node.left_child)
+                if not curr_node.is_leaf():
+                    if curr_node.left_child is None:
+                        curr_node.left_child = curr_node.right_child
+                    elif curr_node.right_child is None:
+                        curr_node.right_child = curr_node.left_child
+
         return self
 
     def predict(self, test_data):
@@ -212,3 +314,139 @@ class DecisionTree:
             # for the instance, so stores that in the array of predictions for that instance
             predictions[index] = curr_node.get_label()
         return predictions
+
+
+data = pd.read_csv(r"data/hepatitis_clean.csv", header=None)
+data.drop(index=data.index[0], axis=0, inplace=True)
+for col in data.columns:
+    data[col] = data[col].astype(float)
+x, y = data.iloc[:, 2:], data.iloc[:, 1]
+
+colors = {1: 'red', 2: 'green'}
+selected_cols_index_HEP = {0, 1, 6, 9, 12, 17, 18}
+selected_cols_index_MESS = {0, 1, 7, 15, 16, 17}
+selected_cols_index = selected_cols_index_HEP
+
+"""
+# --- AVG MODEL PERFORMANCE ---
+
+selected_cols = [x.columns[i] for i in selected_cols_index]
+
+X = x[selected_cols].values
+Y = y.values.reshape(-1, 1)
+
+num_of_runs = 100
+avg = 0
+for i in range(num_of_runs):
+    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, rand_seed=None)
+    tree = DecisionTree(max_depth=20, min_instances=5, cost_function=cost_entropy)
+    tree.fit(x_train, y_train)
+    y_pred = tree.predict(x_test)
+
+    avg += evaluate_acc(y_pred, y_test)
+print("Average model accuracy on test set: " + str(avg/num_of_runs) + "%")
+"""
+
+"""
+# --- BEST FEATURE PAIR ACCURACY ---
+
+best_acc = get_best_acc_cols(x, y, 1)
+print(best_acc)
+"""
+
+#"""
+# --- VIEWING MODEL PERFORMANCE ---
+
+selected_cols = [x.columns[i] for i in selected_cols_index]
+
+#best_acc = get_best_acc_cols(x, y, 10)[0]
+#f1 = best_acc[0][0]
+f1_index_original = 0
+f1_index_new = list(selected_cols_index).index(f1_index_original)
+f1_name = x.columns[f1_index_original]
+f1_axistitle = "Age"
+
+#f2 = best_acc[0][1]
+f2_index_original = 17
+f2_index_new = list(selected_cols_index).index(f2_index_original)
+f2_name = x.columns[f2_index_original]
+f2_axistitle = "Protime"
+
+X = x[selected_cols].values
+Y = y.values.reshape(-1, 1)
+x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, rand_seed=1222)
+model = DecisionTree(max_depth=20, min_instances=20, cost_function=cost_misclassification)
+model.fit(x_train, y_train)
+y_pred = model.predict(x_test)
+x_test_correct = []
+x_test_incorrect = []
+y_pred_correct = []
+y_pred_incorrect = []
+
+for i in range(len(y_pred)):
+    if int(y_pred[i]) == int(y_test[i][0]):
+        x_test_correct.append(x_test[i])
+        y_pred_correct.append(y_test[i][0])
+    else:
+        y_pred_incorrect.append(y_test[i][0])
+        x_test_incorrect.append(x_test[i])
+
+x_test_correct = np.array(x_test_correct)
+x_test_incorrect = np.array(x_test_incorrect)
+y_pred_correct = np.array(y_pred_correct)
+y_pred_incorrect = np.array(y_pred_incorrect)
+
+c_train = [colors[int(i)] for i in y_train]
+c_correct = [colors[int(i)] for i in y_pred_correct]
+c_incorrect = [colors[int(i)] for i in y_pred_incorrect]
+
+try:
+    plt.scatter(x_train[:, f1_index_new].astype('float'), x_train[:, f2_index_new].astype('float'), c=c_train, marker='o', alpha=0.4,
+                label='Train')
+    plt.scatter(x_test_correct[:, f1_index_new].astype('float'), x_test_correct[:, f2_index_new].astype('float'), c=c_correct,
+                label='Correct')
+    plt.scatter(x_test_incorrect[:, f1_index_new].astype('float'), x_test_incorrect[:, f2_index_new].astype('float'), c=c_incorrect,
+                marker='x', label='Misclassified')
+except:
+    plt.scatter([], [], marker='x', label='Misclassified')
+
+plt.legend()
+plt.show()
+
+print("The model accuracy on test set: " + str(evaluate_acc(y_pred, y_test)) + "%")
+
+#  --- DECISION BOUNDARY SECTION ---
+
+X = x[[f1_name, f2_name]].values
+Y = y.values.reshape(-1, 1)
+
+x_train_featurepair = x_train[:, [f1_index_new, f2_index_new]]
+x_test_featurepair = x_test[:, [f1_index_new, f2_index_new]]
+
+model = DecisionTree(max_depth=20, min_instances=1, cost_function=cost_entropy)
+model.fit(x_train_featurepair, y_train)
+
+c_train = [colors[int(i)] for i in y_train]
+
+granularity = 200
+x0v = np.linspace(float(x.iloc[:, f1_index_original].min()), float(x.iloc[:, f1_index_original].max()), granularity)
+x1v = np.linspace(float(x.iloc[:, f2_index_original].min()), float(x.iloc[:, f2_index_original].max()), granularity)
+x0, x1 = np.meshgrid(x0v, x1v)
+x_all = np.vstack((x0.ravel(), x1.ravel())).T
+
+y_pred = model.predict(x_test_featurepair)
+y_pred_all = model.predict(x_all)
+
+try:
+    plt.scatter(x_all[:, 0], x_all[:, 1], c=[colors[int(i)] for i in y_pred_all], marker='.', alpha=0.05)
+    plt.scatter(x_train[:, f1_index_new].astype('float'), x_train[:, f2_index_new].astype('float'), c=c_train)
+except:
+    pass
+
+plt.xlabel(f1_axistitle)
+plt.ylabel(f2_axistitle)
+plt.title("Decision Boundary for Detecting DIE/LIVE in the Hepatitis Dataset")
+
+plt.show()
+print(f"The model accuracy on test set using features {f1_axistitle} & {f2_axistitle}: " + str(evaluate_acc(y_pred, y_test)) + "%")
+#"""
