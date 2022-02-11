@@ -4,8 +4,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# TODO finish experiments
-
 
 """
 The following cost functions were taken from the class website code (colab):
