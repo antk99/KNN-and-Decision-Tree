@@ -55,7 +55,7 @@ def train_test_split(X, Y, test_size=0.2, rand_seed=None):
     num_instances_train = int((1-test_size)*num_instances)
 
     if rand_seed is None:
-        np.random.seed(random.random())
+        np.random.seed(random.randint(0, 123456789))
     else:
         np.random.seed(rand_seed)
 
@@ -251,7 +251,7 @@ class DecisionTree:
         num_instances = features.shape[0]       # stores number of instances of the data (num of rows)
 
         # if there are enough instances in the data and not passed the max depth of the tree --> split data
-        if num_instances >= self.min_instances and curr_depth <= self.max_depth:
+        if num_instances > self.min_instances and curr_depth < self.max_depth:
             split = best_split(data, self.cost_function)             # gets the split with minimum cost (best split)
 
             if np.isinf(split['cost']) or split['feature'] is None:  # this shouldn't happen w/ reasonable min_instances
@@ -316,137 +316,182 @@ class DecisionTree:
         return predictions
 
 
-data = pd.read_csv(r"data/hepatitis_clean.csv", header=None)
-data.drop(index=data.index[0], axis=0, inplace=True)
-for col in data.columns:
-    data[col] = data[col].astype(float)
-x, y = data.iloc[:, 2:], data.iloc[:, 1]
+def get_n_most_correlated_features_w_label(data, labels, n):
+    """
+    Gets the n most (+/-) correlated features with with labels
+    :param data: Pandas.DataFrame - the 2D features array
+    :param labels: Pandas.DataFrame - the array of labels
+    :param n: int - the # of the most correlated features (n <= # of features)
+    :return: list - the indices of the n most correlated features to the labels in descending order
+    """
+    n_highest_corr_features = []
+    features = {}
+    for i in range(data.shape[1]):
+        features[i] = abs(labels.corr(data.iloc[:, i]))
 
-colors = {1: 'red', 2: 'green'}
-selected_cols_index_HEP = {0, 1, 6, 9, 12, 17, 18}
-selected_cols_index_MESS = {0, 1, 7, 15, 16, 17}
-selected_cols_index = selected_cols_index_HEP
+    # finds the n features with the highest correlation
+    for i in range(n):
+        # stores the current feature with the highest corr as a tuple (feature index, correlation)
+        max_corr_feature = (-1, -1)
+        for feature_index in features:
+            if features[feature_index] > max_corr_feature[1]:
+                max_corr_feature = (feature_index, features[feature_index])
 
-"""
-# --- AVG MODEL PERFORMANCE ---
+        n_highest_corr_features.append(max_corr_feature[0])
+        del features[max_corr_feature[0]]
 
-selected_cols = [x.columns[i] for i in selected_cols_index]
+    return n_highest_corr_features
 
-X = x[selected_cols].values
-Y = y.values.reshape(-1, 1)
 
-num_of_runs = 100
-avg = 0
-for i in range(num_of_runs):
-    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, rand_seed=None)
-    tree = DecisionTree(max_depth=20, min_instances=5, cost_function=cost_entropy)
-    tree.fit(x_train, y_train)
-    y_pred = tree.predict(x_test)
+# main function used for various testing of models: accuracy, decision boundaries, graphing, etc.
+if __name__ == '__main__':
+    # --- DATA PREPROCESSING ---
 
-    avg += evaluate_acc(y_pred, y_test)
-print("Average model accuracy on test set: " + str(avg/num_of_runs) + "%")
-"""
+    data = pd.read_csv(r"data/hepatitis_clean.csv", header=None)
+    data.drop(index=data.index[0], axis=0, inplace=True)
+    for col in data.columns:
+        data[col] = data[col].astype(float)
+    x, y = data.iloc[:, 2:], data.iloc[:, 1]
 
-"""
-# --- BEST FEATURE PAIR ACCURACY ---
+    colors = {1: 'red', 2: 'green'}
+    selected_cols_index = get_n_most_correlated_features_w_label(x, y, 10)
+    #selected_cols_index = [2, 14, 15, 13, 12]
 
-best_acc = get_best_acc_cols(x, y, 1)
-print(best_acc)
-"""
+    """
+    # --- AVG MODEL PERFORMANCE ---
+    
+    selected_cols = [x.columns[i] for i in selected_cols_index]
+    
+    X = x[selected_cols].values
+    Y = y.values.reshape(-1, 1)
+    
+    xvals = []
+    yvals = []
+    
+    num_of_runs = 100
+    
+    cost_fns = [cost_entropy]
+    max_depths = [5]
+    min_instances = [50]
+    
+    for min_instance in min_instances:
+        for depth in max_depths:
+            for cost_fn in cost_fns:
+                avg = 0
+                for i in range(num_of_runs):
+                    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, rand_seed=None)
+                    model = DecisionTree(max_depth=depth, min_instances=min_instance, cost_function=cost_fn)
+                    model.fit(x_train, y_train)
+                    y_pred = model.predict(x_test)
+    
+                    #xvals.append(i)
+                    #yvals.append(evaluate_acc(y_pred, y_test))
+    
+                    avg += evaluate_acc(y_pred, y_test)
+                print(f"Depth={depth}, CostFn={cost_fn.__name__} | Accuracy={avg/num_of_runs}%")
+    
+    # plt.scatter(xvals, yvals)
+    # plt.xlabel('Min Instances')
+    # plt.ylabel('Model accuracy (%)')
+    # plt.title('Model Accuracy vs. Min Instances')
+    # plt.show()
+    
+    print("Average model accuracy on test set: " + str(avg/num_of_runs) + "%")
+    """
 
-#"""
-# --- VIEWING MODEL PERFORMANCE ---
+    #"""
+    # --- VIEWING MODEL PERFORMANCE (graph & decision boundary based on feature 1&2 index - f1, f2) ---
 
-selected_cols = [x.columns[i] for i in selected_cols_index]
+    selected_cols = [x.columns[i] for i in selected_cols_index]
 
-#best_acc = get_best_acc_cols(x, y, 10)[0]
-#f1 = best_acc[0][0]
-f1_index_original = 0
-f1_index_new = list(selected_cols_index).index(f1_index_original)
-f1_name = x.columns[f1_index_original]
-f1_axistitle = "Age"
+    #best_acc = get_best_acc_cols(x, y, 10)[0]
+    #f1 = best_acc[0][0]
+    f1_index_original = 16
+    f1_index_new = list(selected_cols_index).index(f1_index_original)
+    f1_name = x.columns[f1_index_original]
+    f1_axistitle = "Albumin"
 
-#f2 = best_acc[0][1]
-f2_index_original = 17
-f2_index_new = list(selected_cols_index).index(f2_index_original)
-f2_name = x.columns[f2_index_original]
-f2_axistitle = "Protime"
+    #f2 = best_acc[0][1]
+    f2_index_original = 17
+    f2_index_new = list(selected_cols_index).index(f2_index_original)
+    f2_name = x.columns[f2_index_original]
+    f2_axistitle = "Protime"
 
-X = x[selected_cols].values
-Y = y.values.reshape(-1, 1)
-x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, rand_seed=1222)
-model = DecisionTree(max_depth=20, min_instances=20, cost_function=cost_misclassification)
-model.fit(x_train, y_train)
-y_pred = model.predict(x_test)
-x_test_correct = []
-x_test_incorrect = []
-y_pred_correct = []
-y_pred_incorrect = []
+    X = x[selected_cols].values
+    Y = y.values.reshape(-1, 1)
+    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, rand_seed=None)
+    model = DecisionTree(max_depth=20, min_instances=5, cost_function=cost_misclassification)
+    model.fit(x_train, y_train)
+    y_pred = model.predict(x_test)
+    x_test_correct = []
+    x_test_incorrect = []
+    y_pred_correct = []
+    y_pred_incorrect = []
 
-for i in range(len(y_pred)):
-    if int(y_pred[i]) == int(y_test[i][0]):
-        x_test_correct.append(x_test[i])
-        y_pred_correct.append(y_test[i][0])
-    else:
-        y_pred_incorrect.append(y_test[i][0])
-        x_test_incorrect.append(x_test[i])
+    for i in range(len(y_pred)):
+        if int(y_pred[i]) == int(y_test[i][0]):
+            x_test_correct.append(x_test[i])
+            y_pred_correct.append(y_test[i][0])
+        else:
+            y_pred_incorrect.append(y_test[i][0])
+            x_test_incorrect.append(x_test[i])
 
-x_test_correct = np.array(x_test_correct)
-x_test_incorrect = np.array(x_test_incorrect)
-y_pred_correct = np.array(y_pred_correct)
-y_pred_incorrect = np.array(y_pred_incorrect)
+    x_test_correct = np.array(x_test_correct)
+    x_test_incorrect = np.array(x_test_incorrect)
+    y_pred_correct = np.array(y_pred_correct)
+    y_pred_incorrect = np.array(y_pred_incorrect)
 
-c_train = [colors[int(i)] for i in y_train]
-c_correct = [colors[int(i)] for i in y_pred_correct]
-c_incorrect = [colors[int(i)] for i in y_pred_incorrect]
+    c_train = [colors[int(i)] for i in y_train]
+    c_correct = [colors[int(i)] for i in y_pred_correct]
+    c_incorrect = [colors[int(i)] for i in y_pred_incorrect]
 
-try:
-    plt.scatter(x_train[:, f1_index_new].astype('float'), x_train[:, f2_index_new].astype('float'), c=c_train, marker='o', alpha=0.4,
-                label='Train')
-    plt.scatter(x_test_correct[:, f1_index_new].astype('float'), x_test_correct[:, f2_index_new].astype('float'), c=c_correct,
-                label='Correct')
-    plt.scatter(x_test_incorrect[:, f1_index_new].astype('float'), x_test_incorrect[:, f2_index_new].astype('float'), c=c_incorrect,
-                marker='x', label='Misclassified')
-except:
-    plt.scatter([], [], marker='x', label='Misclassified')
+    try:
+        plt.scatter(x_train[:, f1_index_new].astype('float'), x_train[:, f2_index_new].astype('float'), c=c_train, marker='o', alpha=0.4,
+                    label='Train')
+        plt.scatter(x_test_correct[:, f1_index_new].astype('float'), x_test_correct[:, f2_index_new].astype('float'), c=c_correct,
+                    label='Correct')
+        plt.scatter(x_test_incorrect[:, f1_index_new].astype('float'), x_test_incorrect[:, f2_index_new].astype('float'), c=c_incorrect,
+                    marker='x', label='Misclassified')
+    except:
+        plt.scatter([], [], marker='x', label='Misclassified')
 
-plt.legend()
-plt.show()
+    plt.legend()
+    plt.show()
 
-print("The model accuracy on test set: " + str(evaluate_acc(y_pred, y_test)) + "%")
+    print("The model accuracy on test set: " + str(evaluate_acc(y_pred, y_test)) + "%")
 
-#  --- DECISION BOUNDARY SECTION ---
+    #  --- DECISION BOUNDARY SECTION ---
 
-X = x[[f1_name, f2_name]].values
-Y = y.values.reshape(-1, 1)
+    X = x[[f1_name, f2_name]].values
+    Y = y.values.reshape(-1, 1)
 
-x_train_featurepair = x_train[:, [f1_index_new, f2_index_new]]
-x_test_featurepair = x_test[:, [f1_index_new, f2_index_new]]
+    x_train_featurepair = x_train[:, [f1_index_new, f2_index_new]]
+    x_test_featurepair = x_test[:, [f1_index_new, f2_index_new]]
 
-model = DecisionTree(max_depth=20, min_instances=1, cost_function=cost_entropy)
-model.fit(x_train_featurepair, y_train)
+    model = DecisionTree(max_depth=20, min_instances=5, cost_function=cost_misclassification)
+    model.fit(x_train_featurepair, y_train)
 
-c_train = [colors[int(i)] for i in y_train]
+    c_train = [colors[int(i)] for i in y_train]
 
-granularity = 200
-x0v = np.linspace(float(x.iloc[:, f1_index_original].min()), float(x.iloc[:, f1_index_original].max()), granularity)
-x1v = np.linspace(float(x.iloc[:, f2_index_original].min()), float(x.iloc[:, f2_index_original].max()), granularity)
-x0, x1 = np.meshgrid(x0v, x1v)
-x_all = np.vstack((x0.ravel(), x1.ravel())).T
+    granularity = 200
+    x0v = np.linspace(float(x.iloc[:, f1_index_original].min()), float(x.iloc[:, f1_index_original].max()), granularity)
+    x1v = np.linspace(float(x.iloc[:, f2_index_original].min()), float(x.iloc[:, f2_index_original].max()), granularity)
+    x0, x1 = np.meshgrid(x0v, x1v)
+    x_all = np.vstack((x0.ravel(), x1.ravel())).T
 
-y_pred = model.predict(x_test_featurepair)
-y_pred_all = model.predict(x_all)
+    y_pred = model.predict(x_test_featurepair)
+    y_pred_all = model.predict(x_all)
 
-try:
-    plt.scatter(x_all[:, 0], x_all[:, 1], c=[colors[int(i)] for i in y_pred_all], marker='.', alpha=0.05)
-    plt.scatter(x_train[:, f1_index_new].astype('float'), x_train[:, f2_index_new].astype('float'), c=c_train)
-except:
-    pass
+    try:
+        plt.scatter(x_all[:, 0], x_all[:, 1], c=[colors[int(i)] for i in y_pred_all], marker='.', alpha=0.05)
+        plt.scatter(x_train[:, f1_index_new].astype('float'), x_train[:, f2_index_new].astype('float'), c=c_train)
+    except:
+        pass
 
-plt.xlabel(f1_axistitle)
-plt.ylabel(f2_axistitle)
-plt.title("Decision Boundary for Detecting DIE/LIVE in the Hepatitis Dataset")
+    plt.xlabel(f1_axistitle)
+    plt.ylabel(f2_axistitle)
+    plt.title("Decision Boundary for Detecting DIE/LIVE in the Hepatitis Dataset")
 
-plt.show()
-print(f"The model accuracy on test set using features {f1_axistitle} & {f2_axistitle}: " + str(evaluate_acc(y_pred, y_test)) + "%")
-#"""
+    plt.show()
+    print(f"The model accuracy on test set using features {f1_axistitle} & {f2_axistitle}: " + str(evaluate_acc(y_pred, y_test)) + "%")
+    #"""
